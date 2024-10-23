@@ -1,0 +1,10 @@
+fileFormatVersion: 2
+guid: 7ff4bc334c8a4afb92dafc5b8675ff6c
+timeCreated: 1644233961
+AssetOrigin:
+  serializedVersion: 1
+  productId: 202138
+  packageName: 'Script Editor: VS + Rider support'
+  packageVersion: 1.5
+  assetPath: Assets/Plugins/100500games/ScriptEditor/Editor/Scripts/DataContracts/ScriptEditorInternalPoint.cs
+  uploadId: 639775

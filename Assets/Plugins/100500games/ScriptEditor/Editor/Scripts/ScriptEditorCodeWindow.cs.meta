@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: e62d6aea1107bd8429a2b99b0c84592a
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 202138
+  packageName: 'Script Editor: VS + Rider support'
+  packageVersion: 1.5
+  assetPath: Assets/Plugins/100500games/ScriptEditor/Editor/Scripts/ScriptEditorCodeWindow.cs
+  uploadId: 639775
