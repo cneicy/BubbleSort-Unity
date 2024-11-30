@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using DG.Tweening;
@@ -16,24 +17,42 @@ namespace GamePlay.Camera
         [SerializeField] public float playSpeed;
         [SerializeField] private GameObject dataItem;
         [SerializeField] private List<ItemHelper> dataItems = new();
-        [SerializeField] private bool autoSort=true;
+        [SerializeField] private bool autoSort = true;
         [SerializeField] private TMP_Text arrow;
         [SerializeField] private TMP_InputField dataCountInputField;
         [SerializeField] private Toggle autoSortToggle;
         [SerializeField] private TMP_InputField playSpeedInputField;
         [SerializeField] private List<AudioSource> audioSources = new();
 
+        [SerializeField] private TMP_Text timeText;
+        public float timeCost;
+        public int compTime;
+        private float _startTime;
+        public int swapTime;
+
         private int _currentFirstIndex;
         private int _currentSecondIndex;
         private bool _isSorting;
+
+        private void UpdateTimeText()
+        {
+            timeText.text = timeCost == 0 ? $"TimeCost:\nWaiting\nCompTime:\n{compTime}\nSwapTime:\n{swapTime}" : $"TimeCost:\n{timeCost:F2}\nCompTime:\n{compTime}\nSwapTime:\n{swapTime}";
+        }
+
+        public void OnEnable()
+        {
+            dataCount = int.Parse(dataCountInputField.text);
+            autoSort = autoSortToggle.isOn;
+            playSpeed = float.Parse(playSpeedInputField.text);
+            UpdateTimeText();
+            ReGen();
+        }
 
         private void Start()
         {
             dataCountInputField.onValueChanged.AddListener(OnDataCountChanged);
             playSpeedInputField.onValueChanged.AddListener(OnPlaySpeedChanged);
             autoSortToggle.onValueChanged.AddListener(OnAutoSortToggleChanged);
-
-            DataGen();
         }
 
         private void OnDataCountChanged(string value)
@@ -58,16 +77,25 @@ namespace GamePlay.Camera
 
         public void ReGen()
         {
-            foreach (var item in dataItems)
+            foreach (var item in dataItems.Where(item => item != null))
             {
                 Destroy(item.gameObject);
+            }
+
+            var temp = GameObject.FindGameObjectsWithTag("Data");
+            foreach (var item in temp)
+            {
+                Destroy(item);
             }
 
             dataItems.Clear();
             _isSorting = false;
             _currentFirstIndex = 0;
             _currentSecondIndex = 0;
-            StopAllCoroutines();
+            timeCost = 0;
+            compTime = 0;
+            _startTime = Time.time;
+            swapTime = 0;
             DataGen();
         }
 
@@ -76,27 +104,31 @@ namespace GamePlay.Camera
             for (var i = 0; i < dataCount; i++)
             {
                 var temp = Random.Range(5, dataCount * 1.25f);
-                var newItem = Instantiate(dataItem, new Vector3(i * 0.75f, 0, 5), Quaternion.identity)
-                    .AddComponent<ItemHelper>().GetComponent<ItemHelper>();
-                newItem.value = temp;
-                newItem.index = i;
-                newItem.rend.material.color = Color.white;
-                dataItems.Add(newItem);
+                var newItem = Instantiate(dataItem, new Vector3(i * 0.75f, 0, 5), Quaternion.identity);
+                newItem.AddComponent<ItemHelper>();
+                var tmp = newItem.GetComponent<ItemHelper>();
+                tmp.value = temp;
+                tmp.index = i;
+                tmp.rend.material.color = Color.white;
+                dataItems.Add(tmp);
             }
         }
 
         public void Click()
         {
-            if (!_isSorting)
-            {
-                StartCoroutine(Sort());
-            }
+            if (_isSorting) return;
+
+            timeCost = 0;
+            compTime = 0;
+            _startTime = Time.time;
+            swapTime = 0;
+            StartCoroutine(Sort());
         }
 
         private IEnumerator Sort()
         {
             _isSorting = true;
-
+            
             if (_currentSecondIndex >= dataCount - 1 - _currentFirstIndex)
             {
                 _currentFirstIndex++;
@@ -106,9 +138,14 @@ namespace GamePlay.Camera
             if (_currentFirstIndex >= dataCount - 1)
             {
                 dataItems[0].rend.material.DOColor(Color.cyan, 0.2f * playSpeed);
+                timeCost = Time.time - _startTime;
+                UpdateTimeText();
                 yield break;
             }
 
+            compTime++;
+            UpdateTimeText();
+            
             if (dataItems[_currentSecondIndex].value > dataItems[_currentSecondIndex + 1].value)
             {
                 yield return SwapItems(dataItems[_currentSecondIndex], dataItems[_currentSecondIndex + 1]);
@@ -121,12 +158,14 @@ namespace GamePlay.Camera
             yield return new WaitForSeconds(0.2f * playSpeed);
 
             _currentSecondIndex++;
+            
             if (_currentSecondIndex >= dataCount - 1 - _currentFirstIndex)
             {
                 dataItems[_currentSecondIndex].rend.material.DOColor(Color.cyan, 0.2f * playSpeed);
             }
 
             _isSorting = false;
+
             if (autoSort)
             {
                 StartCoroutine(Sort());
@@ -135,11 +174,14 @@ namespace GamePlay.Camera
 
         private IEnumerator SwapItems(ItemHelper item1, ItemHelper item2)
         {
+            swapTime++;
+            UpdateTimeText();
             item1.rend.material.DOColor(Color.green, 0.2f * playSpeed);
             item2.rend.material.DOColor(Color.green, 0.2f * playSpeed);
 
             var oriPos1 = item1.transform.position;
             var oriPos2 = item2.transform.position;
+            
             var outPos1 = oriPos1 - new Vector3(0, 0, 0.5f);
             var outPos2 = oriPos2 - new Vector3(0, 0, 0.5f);
 
@@ -152,7 +194,7 @@ namespace GamePlay.Camera
             var startValue1 = item1.value;
             var startValue2 = item2.value;
             var duration = 0.1f * playSpeed;
-
+            
             yield return StartCoroutine(AnimateValueChange(item1, startValue1, startValue2, duration));
             yield return StartCoroutine(AnimateValueChange(item2, startValue2, startValue1, duration));
 
@@ -204,10 +246,10 @@ namespace GamePlay.Camera
 
         private void PlayAudio()
         {
-            foreach (var source in audioSources.Where(source => !source.isPlaying))
+            var availableSource = audioSources.FirstOrDefault(source => !source.isPlaying);
+            if (availableSource)
             {
-                source.Play();
-                return;
+                availableSource.Play();
             }
         }
 
@@ -223,6 +265,14 @@ namespace GamePlay.Camera
             }
 
             item.value = endValue;
+        }
+
+        private void OnDisable()
+        {
+            foreach (var obj in dataItems)
+            {
+                Destroy(obj.gameObject);
+            }
         }
     }
 }
